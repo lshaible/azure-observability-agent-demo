@@ -49,6 +49,12 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+# az (a native command) non-zero exits do NOT throw on their own — especially on
+# Windows PowerShell 5.1. Check $LASTEXITCODE explicitly so failures stop the script
+# instead of cascading into a misleading "DONE".
+function Assert-LastExit($what) {
+    if ($LASTEXITCODE -ne 0) { throw "STEP FAILED: $what (az exit code $LASTEXITCODE)" }
+}
 function Step($m) { Write-Host "`n=== $m ===" -ForegroundColor Cyan }
 
 # Resource names
@@ -84,20 +90,34 @@ $conn  = az monitor app-insights component show -g $ResourceGroup -a $appi --que
 $appId = az monitor app-insights component show -g $ResourceGroup -a $appi --query appId -o tsv
 $appiId = az monitor app-insights component show -g $ResourceGroup -a $appi --query id -o tsv
 
-Step "App Service plan $plan + web app $web ($WebLocation, Linux Python)"
-Write-Host "  (If this fails with a quota error, retry with -WebLocation centralus or westeurope)" -ForegroundColor Yellow
-az appservice plan create -g $ResourceGroup -n $plan -l $WebLocation --is-linux --sku F1 -o none
+Step "App Service plan $plan + web app $web (Linux Python)"
+# App Service Free (F1) capacity is region-constrained and frequently exhausted in some
+# regions (e.g. westus2/eastus). Try the requested region first, then known-good fallbacks.
+$webRegions = @($WebLocation) + (@("centralus", "westus3", "westeurope") | Where-Object { $_ -ne $WebLocation })
+$planOk = $false
+foreach ($loc in $webRegions) {
+    Write-Host "  Trying App Service plan in $loc ..." -ForegroundColor Yellow
+    az appservice plan create -g $ResourceGroup -n $plan -l $loc --is-linux --sku F1 -o none
+    if ($LASTEXITCODE -eq 0) { $WebLocation = $loc; $planOk = $true; break }
+    Write-Host "  No capacity in $loc; trying next region..." -ForegroundColor DarkYellow
+}
+if (-not $planOk) { throw "Could not create App Service plan in any region: $($webRegions -join ', ')" }
+Write-Host "  Using web region: $WebLocation" -ForegroundColor Green
 az webapp create -g $ResourceGroup -p $plan -n $web --runtime "PYTHON:3.11" -o none
+Assert-LastExit "web app create"
 az webapp config set -g $ResourceGroup -n $web `
     --startup-file "gunicorn --bind=0.0.0.0 --timeout 600 app:app" -o none
+Assert-LastExit "web app startup config"
 az webapp config appsettings set -g $ResourceGroup -n $web --settings `
     "APPLICATIONINSIGHTS_CONNECTION_STRING=$conn" "SCM_DO_BUILD_DURING_DEPLOYMENT=true" -o none
+Assert-LastExit "web app app settings"
 
 Step "Deploying Flask app code (app.py + requirements.txt)"
 $zip = Join-Path $env:TEMP "obsdemo-app-$rand.zip"
 if (Test-Path $zip) { Remove-Item $zip -Force }
 Compress-Archive -Path (Join-Path $scriptDir "app.py"), (Join-Path $scriptDir "requirements.txt") -DestinationPath $zip -Force
 az webapp deploy -g $ResourceGroup -n $web --type zip --src-path $zip -o none
+Assert-LastExit "app code deploy"
 Write-Host "  App URL: https://$web.azurewebsites.net"
 
 Step "Action group $ag (email $NotifyEmail)"
@@ -112,6 +132,7 @@ az monitor metrics alert create -g $ResourceGroup -n $metricAlert `
     --window-size 5m --evaluation-frequency 1m `
     --description "Failed requests spike on $appi" `
     --action $agId -o none
+Assert-LastExit "metric alert create"
 
 Step "Log alert $logAlert (failure rate > 20% / 5m)"
 # NOTE: Success is a STRING in AppRequests ('True'/'False'); guard divide-by-zero so no
@@ -119,12 +140,13 @@ Step "Log alert $logAlert (failure rate > 20% / 5m)"
 $logQuery = 'AppRequests | where TimeGenerated > ago(5m) | summarize total=count(), fails=countif(Success == "False") | extend FailRatePct = iff(total == 0, 0.0, 100.0*fails/total) | project FailRatePct'
 az monitor scheduled-query create -g $ResourceGroup -n $logAlert `
     --scopes $lawId `
-    --condition "max FailRatePct > 20" `
-    --condition-query FailRatePct="$logQuery" `
+    --condition "max FailRatePct from 'Q' > 20" `
+    --condition-query Q="$logQuery" `
     --window-size 5m --evaluation-frequency 5m `
     --auto-mitigate true `
     --description "Failure rate > 20% on $appi" `
     --action-groups $agId -o none
+Assert-LastExit "log-query alert create"
 
 Step "Azure Monitor workspace $amw ($MonitorLocation)"
 az resource create -g $ResourceGroup -n $amw `
@@ -140,10 +162,12 @@ az deployment group create -g $ResourceGroup -n "$agent-deploy" `
         monitoringAccountId=$amwId targetResourceId=$appiId `
         monitoredResourceName=$appi `
         issueCreationInstructions="$instructions" -o none
+Assert-LastExit "Observability Agent ARM deployment"
 $principalId = az deployment group show -g $ResourceGroup -n "$agent-deploy" --query properties.outputs.principalId.value -o tsv
 Write-Host "  Agent identity principalId: $principalId"
 az role assignment create --assignee-object-id $principalId --assignee-principal-type ServicePrincipal `
     --role "Monitoring Contributor" --scope "/subscriptions/$sub" -o none
+Assert-LastExit "Monitoring Contributor role assignment"
 
 Step "Workbook dashboard"
 function QueryItem($title, $query, $viz, $size) {
@@ -172,6 +196,7 @@ $wbFile = Join-Path $env:TEMP "wb-body-$rand.json"
 $wbBody | Out-File -FilePath $wbFile -Encoding utf8
 $wbUrl = "https://management.azure.com/subscriptions/$sub/resourceGroups/$ResourceGroup/providers/microsoft.insights/workbooks/$($wbGuid)?api-version=2022-04-01"
 az rest --method put --uri $wbUrl --body "@$wbFile" --headers "Content-Type=application/json" -o none
+Assert-LastExit "workbook deployment"
 
 # Persist the app name for the generator scripts
 Set-Content -Path (Join-Path $scriptDir "appname.txt") -Value $web

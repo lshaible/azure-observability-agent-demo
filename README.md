@@ -70,7 +70,8 @@ for the human-in-the-loop path.
 - An Azure subscription where you can create resources
 - [Azure CLI](https://learn.microsoft.com/cli/azure/install-azure-cli) (`az login` completed)
 - PowerShell 7+ (`pwsh`)
-- App Service VM quota in your chosen web region (the script defaults to `westus2`;
+- App Service VM quota in your chosen web region (the script defaults to `westus2` and
+  **auto-falls-back** to `centralus`/`westus3`/`westeurope` if a region is at capacity;
   some subscriptions have **0** quota in `eastus`/`eastus2` even for the Free F1 tier)
 - Access to the **Observability Agent preview** in your tenant
 
