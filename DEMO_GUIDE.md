@@ -77,7 +77,7 @@ To tear it all down: `az group delete -n <ResourceGroup> --yes --no-wait` (Secti
 
 | Resource | Name | Region | Purpose |
 |---|---|---|---|
-| Web App (Flask) | `web-obs-demo-80295` | westus2 | Emits telemetry; has the broken endpoint |
+| Web App (Flask) | `web-obs-demo-80295` ⁽¹⁾ | westus2 | Emits telemetry; has the broken endpoint |
 | App Service Plan | `plan-obs-demo` (F1 Free) | westus2 | Hosts the web app |
 | Application Insights | `appi-obs-demo` | eastus | APM: requests, traces, exceptions |
 | Log Analytics workspace | `law-obs-demo` | eastus | Stores all telemetry (KQL backend) |
@@ -87,6 +87,11 @@ To tear it all down: `az group delete -n <ResourceGroup> --yes --no-wait` (Secti
 | Log-query alert | `alert-failure-rate` | global | Fires when failure rate > 20% / 5 min |
 | Workbook | `Observability Demo Dashboard` | — | Manual dashboard (6 KQL tiles) |
 | **Observability Agent** | `obsagent-demo` | eastus | **Autonomous AI diagnosis** |
+
+> ⁽¹⁾ The web app's `-80295` suffix is a **random 5-digit number generated on every deploy**
+> (`web-<prefix>-<random>`), because `*.azurewebsites.net` hostnames must be globally unique.
+> Yours will differ. `deploy-all.ps1` prints the real name and saves it to `appname.txt`
+> (the generator scripts read it automatically).
 
 **App URL:** https://<your-web-app>.azurewebsites.net
 
