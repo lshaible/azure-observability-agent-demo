@@ -111,7 +111,7 @@ To tear it all down: `az group delete -n <ResourceGroup> --yes --no-wait` (Secti
                                    v
                     +------------------------------+
                     |  Azure App Service (westus2) |
-                    |  web-obs-demo-80295          |
+                    |  web-obs-demo-XXXXX          |
                     |  Python Flask + gunicorn     |
                     |  OpenTelemetry instrumented  |
                     +---------------+--------------+
@@ -195,7 +195,8 @@ Parameters: `-Url`, `-Minutes` (60), `-ErrorEvery` (4), `-SlowEvery` (5), `-Dela
 
 **Manual one-off error (for a single dramatic 500):**
 ```powershell
-Invoke-WebRequest "https://web-obs-demo-80295.azurewebsites.net/error" -UseBasicParsing
+$app = (Get-Content .\appname.txt).Trim()   # the random web app name from deploy-all.ps1
+Invoke-WebRequest "https://$app.azurewebsites.net/error" -UseBasicParsing
 ```
 
 > ⏱ **Ingestion lag:** telemetry takes ~2–4 minutes to appear in Azure Monitor. Always
@@ -456,7 +457,7 @@ Why this helps the demo:
 Show the architecture diagram (Section 3).
 
 ### Act 2 — Show the live failure (1 min)
-- Browser: open `https://web-obs-demo-80295.azurewebsites.net/` (OK), then `/error` (500).
+- Browser: open `https://<your-web-app>.azurewebsites.net/` (OK), then `/error` (500).
 - "That `/error` 500 is happening continuously under load."
 
 ### Act 3 — The MANUAL way (3–4 min)
