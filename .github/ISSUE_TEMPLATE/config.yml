@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Azure Monitor Observability Agent docs
+    url: https://learn.microsoft.com/azure/azure-monitor/
+    about: Official Microsoft Learn documentation for Azure Monitor.
+  - name: Demo guide
+    url: https://github.com/lshaible/azure-observability-agent-demo/blob/main/DEMO_GUIDE.md
+    about: Read the full walkthrough, FAQ, and troubleshooting first.

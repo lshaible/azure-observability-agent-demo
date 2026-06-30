@@ -1,0 +1,41 @@
+name: Bug report
+description: Report a problem with the demo, scripts, or documentation
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a bug. Please **redact** any tenant
+        IDs, subscription IDs, connection strings, or other secrets from logs.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: A clear description of the problem and what you expected instead.
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: Exact commands you ran (e.g. the `deploy-all.ps1` invocation) and the output.
+      render: shell
+    validations:
+      required: true
+  - type: input
+    id: region
+    attributes:
+      label: Azure region(s)
+      description: WebLocation / MonitorLocation you used.
+      placeholder: "westus2 / eastus"
+    validations:
+      required: false
+  - type: textarea
+    id: env
+    attributes:
+      label: Environment
+      description: OS, PowerShell version (`$PSVersionTable.PSVersion`), and Azure CLI version (`az version`).
+      render: shell
+    validations:
+      required: false
