@@ -1,0 +1,23 @@
+# Instance-specific / generated artifacts (do NOT commit)
+appname.txt
+wb-body.json
+alert-failure-rate.json
+*.zip
+
+# Secrets / local config
+.env
+*.env
+*.pfx
+*.pem
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/

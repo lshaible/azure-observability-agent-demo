@@ -1,0 +1,4 @@
+flask
+gunicorn
+azure-monitor-opentelemetry
+opentelemetry-instrumentation-flask

@@ -1,0 +1,56 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "agentName": { "type": "string" },
+    "location": { "type": "string" },
+    "monitoringAccountId": { "type": "string" },
+    "targetResourceId": { "type": "string" },
+    "monitoredResourceName": { "type": "string" },
+    "issueCreationInstructions": { "type": "string" }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Monitor/observabilityAgents",
+      "apiVersion": "2026-05-01-preview",
+      "name": "[parameters('agentName')]",
+      "location": "[parameters('location')]",
+      "identity": { "type": "SystemAssigned" },
+      "tags": { "env": "demo" },
+      "properties": {
+        "monitoringAccountId": "[parameters('monitoringAccountId')]",
+        "enabled": true,
+        "operations": [
+          {
+            "type": "IssueCreation",
+            "mode": "Auto",
+            "instructions": "[parameters('issueCreationInstructions')]"
+          },
+          {
+            "type": "Investigation",
+            "mode": "Auto"
+          }
+        ]
+      }
+    },
+    {
+      "type": "Microsoft.Monitor/observabilityAgents/monitoredResources",
+      "apiVersion": "2026-05-01-preview",
+      "name": "[format('{0}/{1}', parameters('agentName'), parameters('monitoredResourceName'))]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Monitor/observabilityAgents', parameters('agentName'))]"
+      ],
+      "properties": {
+        "resourceId": "[parameters('targetResourceId')]",
+        "enabled": true,
+        "isAutonomous": true
+      }
+    }
+  ],
+  "outputs": {
+    "principalId": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Monitor/observabilityAgents', parameters('agentName')), '2026-05-01-preview', 'full').identity.principalId]"
+    }
+  }
+}
