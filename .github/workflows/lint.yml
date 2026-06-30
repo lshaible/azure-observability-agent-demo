@@ -1,0 +1,36 @@
+name: Lint PowerShell
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  psscriptanalyzer:
+    name: Run PSScriptAnalyzer
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install PSScriptAnalyzer
+        shell: pwsh
+        run: |
+          Set-PSRepository -Name PSGallery -InstallationPolicy Trusted
+          Install-Module PSScriptAnalyzer -Scope CurrentUser -Force
+
+      - name: Analyze scripts
+        shell: pwsh
+        run: |
+          $results = Invoke-ScriptAnalyzer -Path . -Recurse -Severity Warning,Error
+          if ($results) {
+            $results | Format-Table -AutoSize | Out-String | Write-Host
+            $errors = @($results | Where-Object Severity -eq 'Error')
+            if ($errors.Count -gt 0) {
+              Write-Error "PSScriptAnalyzer found $($errors.Count) error(s)."
+              exit 1
+            }
+            Write-Host "Warnings found (non-blocking)."
+          } else {
+            Write-Host "No issues found."
+          }

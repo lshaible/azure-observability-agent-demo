@@ -14,6 +14,44 @@ Observability Agent autonomously diagnose the failure — while also demonstrati
 > surface changes frequently. See the Troubleshooting section of `DEMO_GUIDE.md` for known
 > preview quirks (issue dedup, status/impact-time PATCH bugs, agent-mode editing).
 
+## Architecture
+
+```mermaid
+flowchart LR
+    subgraph App["App tier"]
+        WEB["Flask web app<br/>(App Service)<br/>/, /slow, /error"]
+    end
+    subgraph Telemetry["Telemetry"]
+        AI["Application Insights"]
+        LAW["Log Analytics<br/>workspace"]
+    end
+    subgraph Alerting["Alerting"]
+        MA["Metric alert<br/>alert-failed-requests"]
+        LA["Log-query alert<br/>alert-failure-rate"]
+        AG["Action group<br/>(email)"]
+    end
+    subgraph AIOps["Autonomous AIOps"]
+        AMW["Azure Monitor<br/>workspace (Issues)"]
+        AGENT["Observability Agent"]
+    end
+    WB["Workbook<br/>(manual KQL dashboard)"]
+
+    WEB -->|OpenTelemetry| AI --> LAW
+    AI --> MA
+    LAW --> LA
+    MA --> AG
+    LA --> AG
+    MA --> AGENT
+    AGENT -->|root-caused| AMW
+    LAW --> WB
+```
+
+The web app emits OpenTelemetry to Application Insights (backed by Log Analytics). A failing
+`/error` endpoint drives two alerts — a **metric** alert and a **log-query** alert. The
+**Observability Agent** autonomously correlates the alert on its monitored resource and writes
+a root-caused **Issue** into the Azure Monitor workspace. The workbook offers a manual KQL view
+for the human-in-the-loop path.
+
 ## What gets deployed
 
 | Component | Purpose |
