@@ -3,7 +3,8 @@ version: 2
 updates:
 
  - package-ecosystem: "pip"
-
+ - package-ecosystem: ""
+ 
    directory: "/"
 
    schedule:
